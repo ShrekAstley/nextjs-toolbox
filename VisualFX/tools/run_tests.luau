@@ -35,6 +35,7 @@ end
 
 local packageNode = findNode(bundle, { "ReplicatedStorage", "VisualFX" })
 local testsNode = findNode(bundle, { "ReplicatedStorage", "VisualFXTests" })
+local examplesNode = findNode(bundle, { "ReplicatedStorage", "VisualFXExamples" })
 
 local specNames = {}
 for _, child in ipairs(testsNode.Children) do
@@ -52,6 +53,7 @@ for _, specName in ipairs(specNames) do
 	local replicatedStorage = world.game:GetService("ReplicatedStorage")
 	local package = Mock.mount(packageNode, replicatedStorage)
 	local tests = Mock.mount(testsNode, replicatedStorage)
+	Mock.mount(examplesNode, replicatedStorage)
 	local requireFn = Mock.makeRequire(world)
 	local ok, problem = pcall(function()
 		local TestKit = requireFn(tests.TestKit)

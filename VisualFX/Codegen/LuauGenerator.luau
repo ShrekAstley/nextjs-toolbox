@@ -179,12 +179,7 @@ local function trimParticles(particles, registry)
 			local trimmed = {}
 			for key, value in pairs(system) do
 				local default = template.Defaults[key]
-				local equalsDefault = default ~= nil and Values.equal(default, value)
-				-- A ColorSequence default equals a single Color3 written by a human.
-				if not equalsDefault and typeof(default) == "ColorSequence" and typeof(value) == "ColorSequence" then
-					equalsDefault = Values.equal(default, value)
-				end
-				if not equalsDefault then
+				if default == nil or not Values.equal(default, value) then
 					trimmed[key] = value
 				end
 			end

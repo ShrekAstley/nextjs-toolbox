@@ -293,10 +293,10 @@ function Environment.CreateController(engine)
 			end
 		end
 
-		-- Zone atmosphere blending.
+		-- Zone atmosphere blending follows the local camera (clients only).
 		local zones = environment.Zones
 		local camera = workspace.CurrentCamera
-		if not zones or not camera then
+		if not zones or not camera or not engine.Settings.CameraEffects then
 			return
 		end
 		local cameraPosition = camera.CFrame.Position

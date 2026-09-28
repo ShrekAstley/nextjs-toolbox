@@ -11,7 +11,8 @@
         "Presets": { "$path": "Presets" },
         "Codegen": { "$path": "Codegen" }
       },
-      "VisualFXTests": { "$path": "Tests" }
+      "VisualFXTests": { "$path": "Tests" },
+      "VisualFXExamples": { "$path": "Examples" }
     },
     "ServerScriptService": {
       "RunVisualFXTests": { "$path": "tools/RunTestsInStudio.server.luau" }

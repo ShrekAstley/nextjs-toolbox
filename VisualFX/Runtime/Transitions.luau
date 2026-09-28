@@ -180,7 +180,6 @@ function Transitions:Start(resolved: { [string]: any }, options: { [string]: any
 	local plan = scene:Plan(resolved, { Scope = options.Scope })
 	local tracks = {}
 	local startSteps = {}
-	local deferredSetters = {}
 
 	local function addTrack(instance: Instance?, spec, property: string, from: any, to: any, recordOriginal: boolean?, specId: string?)
 		local field = spec and spec.FieldsByProperty and spec.FieldsByProperty[property]
@@ -228,7 +227,8 @@ function Transitions:Start(resolved: { [string]: any }, options: { [string]: any
 				end
 				addTrack(step.Instance, step.Spec, step.Property, from, step.Value, false)
 			elseif step.Value == false then
-				table.insert(deferredSetters, step)
+				-- Switching off happens at the end, via the final exact plan.
+				continue
 			else
 				table.insert(startSteps, step)
 			end
@@ -280,7 +280,6 @@ function Transitions:Start(resolved: { [string]: any }, options: { [string]: any
 		Accumulated = 0,
 		Ease = Transitions.GetEasing(options.Easing, options.EasingDirection),
 		Tracks = tracks,
-		Deferred = deferredSetters,
 		Resolved = resolved,
 		Scope = options.Scope,
 		OnComplete = options.OnComplete,

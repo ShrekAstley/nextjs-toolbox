@@ -6,9 +6,12 @@
 	library never depends on the plugin; "Install runtime package" copies it
 	into ReplicatedStorage for use in published games.
 
-	Studio agents (e.g. through an MCP bridge) can also reach the plugin's
-	engine via _G.VisualFXStudio while the plugin is loaded:
+	While the plugin is loaded it publishes a small bridge on _G for code
+	that shares the plugin's global table (other plugin scripts, and tooling
+	that runs in the same context):
 	  _G.VisualFXStudio.Execute({ Action = "InspectScene" })
+	If _G is not shared with your context, require the runtime package
+	(ReplicatedStorage.VisualFX) instead; it exposes the same Execute API.
 ]]
 
 if not plugin then
@@ -56,7 +59,7 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 	end
 end)
 
--- Agent bridge for Studio automation (Command Bar, MCP tools, other plugins).
+-- Agent bridge for Studio automation (code sharing this plugin's _G).
 _G.VisualFXStudio = {
 	Version = engine.Version,
 	Engine = engine,

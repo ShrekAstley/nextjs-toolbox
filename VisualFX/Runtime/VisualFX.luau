@@ -944,7 +944,7 @@ function VisualFX:DiffScene(configuration: any, options: { [string]: any }?)
 		Modified = diff.Modified,
 		Removed = diff.Removed,
 		Unchanged = diff.Unchanged,
-		Warnings = Util.append(Util.append(result.Warnings, diffResult.Warnings), {}),
+		Warnings = Util.append(result.Warnings, diffResult.Warnings),
 		Errors = diffResult.Errors,
 		Summary = diff.Summary,
 		Configuration = diffResult.Configuration,

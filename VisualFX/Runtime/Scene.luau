@@ -39,7 +39,6 @@ function Scene.new(engine)
 	local self = setmetatable({}, Scene)
 	self.Engine = engine
 	self._runtimeApplied = {} -- ID -> { [property] = last desired value } for runtime-owned properties
-	self._reported = {}
 	return self
 end
 

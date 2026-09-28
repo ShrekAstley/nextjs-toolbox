@@ -97,6 +97,25 @@ LUAU=/path/to/luau sh tools/test.sh Weather  # only specs whose name contains "W
 In Studio, build `test.project.json`, open it and press Play: the server script
 runs every spec and restores Lighting/Terrain/Workspace after each test.
 
+`tools/test.sh` also runs `tools/run_plugin_smoke.luau`, which loads the whole
+plugin headlessly, opens the widget, visits every page and drives the main
+flows (preset apply/preview/revert, live property edit + Apply, search, AI
+Director, code export, runtime package install).
+
+### Regenerating schemas and reference docs
+
+`Documentation/schema/*.json`, `CONFIG_SCHEMA.md` and `PRESETS.md` are generated
+from the live registries so they cannot drift from the code:
+
+```sh
+LUAU=/path/to/luau sh tools/gen_docs.sh
+```
+
+### Layout note
+
+The plugin entry point is `Plugin/PluginMain.server.luau`: the `.server`
+suffix tells Rojo to build it as a `Script`, which plugins require.
+
 ## Design principles
 
 * **Configuration is data.** Every effect is expressed in a canonical,
