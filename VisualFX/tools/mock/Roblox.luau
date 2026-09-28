@@ -494,7 +494,7 @@ Mock.defineEnum("StudioStyleGuideColor", {
 	"HeaderSection", "Midlight", "StatusBar", "DialogButton", "DialogButtonText", "DialogButtonBorder", "DialogMainButton",
 	"DialogMainButtonText", "InfoBarWarningBackground", "InfoBarWarningText", "ScriptEditorScrollBar", "DiffTextAddition",
 	"DiffTextDeletion", "DiffTextAdditionBackground", "DiffTextDeletionBackground", "FilterButtonDefault", "FilterButtonHover",
-	"FilterButtonChecked", "FilterButtonAccent", "FilterButtonBorder", "FilterButtonBorderAlt", "SubText2",
+	"FilterButtonChecked", "FilterButtonAccent", "FilterButtonBorder", "FilterButtonBorderAlt", "SubText2", "ButtonText",
 })
 Mock.defineEnum("StudioStyleGuideModifier", { "Default", "Selected", "Pressed", "Disabled", "Hover" })
 Mock.defineEnum("UserInputType", { "MouseButton1", "MouseButton2", "MouseMovement", "Touch", "Keyboard" })
@@ -503,6 +503,7 @@ Mock.defineEnum("KeyCode", { "Unknown", "Return", "Escape", "Tab" })
 Mock.defineEnum("ZIndexBehavior", { "Global", "Sibling" })
 Mock.defineEnum("ApplyStrokeMode", { "Contextual", "Border" })
 Mock.defineEnum("TextTruncate", { "None", "AtEnd" })
+Mock.defineEnum("FinishRecordingOperation", { "Cancel", "Commit", "Append" })
 
 Mock.Enum = Enum
 
@@ -678,12 +679,51 @@ class("StudioService", "Instance", {}, { Service = true })
 class("Players", "Instance", {}, { Service = true })
 class("TextService", "Instance", {}, { Service = true })
 
--- Permissive GUI / plugin classes: any property can be set.
+-- Permissive GUI / plugin classes: any property can be set; common
+-- properties have defaults so layout code can read them.
+class("GuiBase2d", "Instance", {
+	AbsoluteSize = Vector2.new(320, 24),
+	AbsolutePosition = Vector2.new(0, 0),
+}, { Abstract = true, Permissive = true })
+class("GuiObject", "GuiBase2d", {
+	Visible = true,
+	Size = UDim2.new(0, 0, 0, 0),
+	Position = UDim2.new(0, 0, 0, 0),
+	LayoutOrder = 0,
+}, { Abstract = true, Permissive = true })
+class("GuiButton", "GuiObject", {}, { Abstract = true, Permissive = true })
+for _, name in ipairs({ "Frame", "TextLabel", "ScrollingFrame", "ImageLabel", "CanvasGroup", "ViewportFrame" }) do
+	class(name, "GuiObject", {}, { Permissive = true })
+end
+for _, name in ipairs({ "TextButton", "ImageButton" }) do
+	class(name, "GuiButton", { Text = "" }, { Permissive = true })
+end
+class("TextBox", "GuiObject", { Text = "" }, {
+	Permissive = true,
+	Methods = {
+		IsFocused = function()
+			return false
+		end,
+		CaptureFocus = function() end,
+		ReleaseFocus = function() end,
+	},
+})
+class("LayerCollector", "GuiBase2d", { Enabled = true }, { Abstract = true, Permissive = true })
+class("ScreenGui", "LayerCollector", {}, { Permissive = true })
+class("PluginGui", "LayerCollector", { Title = "" }, { Abstract = true, Permissive = true })
+class("DockWidgetPluginGui", "PluginGui", {}, {
+	Permissive = true,
+	Methods = {
+		GetRelativeMousePosition = function()
+			return Vector2.new(0, 0)
+		end,
+		BindToClose = function() end,
+	},
+})
 for _, name in ipairs({
-	"ScreenGui", "Frame", "TextLabel", "TextButton", "TextBox", "ImageLabel", "ImageButton", "ScrollingFrame",
 	"UIListLayout", "UIGridLayout", "UIPadding", "UICorner", "UIStroke", "UIGradient", "UISizeConstraint",
-	"UITextSizeConstraint", "UIFlexItem", "UIAspectRatioConstraint", "DockWidgetPluginGui", "PluginToolbar",
-	"PluginToolbarButton", "PluginAction", "PluginMenu", "Plugin", "CanvasGroup", "ViewportFrame",
+	"UITextSizeConstraint", "UIFlexItem", "UIAspectRatioConstraint", "PluginToolbar", "PluginToolbarButton",
+	"PluginAction", "PluginMenu", "Plugin",
 }) do
 	class(name, "Instance", {}, { Permissive = true })
 end
@@ -726,8 +766,12 @@ local function hasRef(className, property)
 end
 
 local function isPermissive(className)
-	local definition = Classes[className]
-	return definition and definition.Permissive
+	for _, definition in ipairs(classChain(className)) do
+		if definition.Permissive then
+			return true
+		end
+	end
+	return false
 end
 
 -- Test hooks: simulate engine differences.
@@ -950,10 +994,16 @@ InstanceMeta.__newindex = function(instance, key, value)
 		end
 		s.props[key] = value
 		getSignal(instance, "Changed"):Fire(key)
+		if s.signals["Changed:" .. key] then
+			s.signals["Changed:" .. key]:Fire()
+		end
 		return
 	end
 	if isPermissive(s.className) then
 		s.props[key] = value
+		if s.signals["Changed:" .. key] then
+			s.signals["Changed:" .. key]:Fire()
+		end
 		return
 	end
 	error(string.format("%s is not a valid member of %s \"%s\"", tostring(key), s.className, s.name), 2)
@@ -1412,11 +1462,15 @@ function Mock.createWorld(options)
 			table.insert(warnings, table.concat(parts, " "))
 		end,
 		settings = function()
-			return { Studio = { Theme = Mock.StudioTheme } }
+			return { Studio = { Theme = Mock.StudioTheme, ThemeChanged = Mock.ThemeChanged } }
 		end,
+		-- Scripts in one DataModel share _G (the CLI's own _G is read-only).
+		_G = {},
 	}
 	return world
 end
+
+Mock.ThemeChanged = newSignal()
 
 -- A stand-in for settings().Studio.Theme used by plugin UI smoke tests.
 Mock.StudioTheme = {
@@ -1425,6 +1479,54 @@ Mock.StudioTheme = {
 		return Color3.fromRGB(46, 46, 46)
 	end,
 }
+
+---------------------------------------------------------------------------
+-- Plugin object
+---------------------------------------------------------------------------
+
+-- Creates a stand-in for the `plugin` global.
+function Mock.createPlugin()
+	local store = {}
+	local pluginInstance = InstanceGlobal.new("Plugin")
+	pluginInstance.Name = "VisualFXStudio"
+	local opened = {}
+	Classes.Plugin.Methods = {
+		CreateToolbar = function(_, name)
+			local toolbar = InstanceGlobal.new("PluginToolbar")
+			toolbar.Name = name
+			return toolbar
+		end,
+		CreateDockWidgetPluginGui = function(_, id, _info)
+			local widget = InstanceGlobal.new("DockWidgetPluginGui")
+			widget.Name = id
+			widget.Enabled = false
+			return widget
+		end,
+		GetSetting = function(_, key)
+			return store[key]
+		end,
+		SetSetting = function(_, key, value)
+			store[key] = value
+		end,
+		OpenScript = function(_, scriptInstance)
+			table.insert(opened, scriptInstance)
+		end,
+	}
+	Classes.PluginToolbar.Methods = {
+		CreateButton = function(_, id, _tooltip, _icon, text)
+			local button = InstanceGlobal.new("PluginToolbarButton")
+			button.Name = id
+			button.Text = text
+			return button
+		end,
+	}
+	Classes.PluginToolbarButton.Methods = {
+		SetActive = function(button, active)
+			button.Active = active
+		end,
+	}
+	return pluginInstance, store, opened
+end
 
 ---------------------------------------------------------------------------
 -- Module loading

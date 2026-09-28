@@ -325,7 +325,7 @@ function Scene:Plan(resolved: { [string]: any }, options: { [string]: any }?)
 	-- Creations and updates.
 	for _, spec in ipairs(specs) do
 		local instance, how = self:_Locate(spec, plan)
-		if instance and not spec.Target and instance.ClassName ~= spec.ClassName then
+		if instance and not spec.Target and not spec.Custom and instance.ClassName ~= spec.ClassName then
 			table.insert(plan.Steps, { Kind = "Remove", Instance = instance, Identity = manager:GetIdentity(instance) })
 			table.insert(
 				plan.Warnings,
